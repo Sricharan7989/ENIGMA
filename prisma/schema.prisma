@@ -1,0 +1,156 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  email        String   @unique
+  password     String
+  phone_number String?
+  batch        String?
+  collegeId    String   @db.ObjectId
+  isVerified   Boolean  @default(false)
+  teamId       String?  @db.ObjectId
+  role         Roles    @default(USER)
+  isTeamLeader Boolean  @default(false)
+  team         Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  college      College? @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  createdTeams Team[]   @relation("TeamCreator")
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  // Task Tracker Relations
+  assignedTasks Task[]    @relation("AssignedTasks")
+  createdTasks  Task[]    @relation("TaskCreator")
+  comments      Comment[]
+  activityLogs  ActivityLog[]
+  uploads       Attachment[]
+}
+
+model Team {
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
+  name       String
+  teamCode   String    @unique
+  collegeId  String    @db.ObjectId
+  isVerified Boolean   @default(false)
+  ClubName   String?
+  points     Int       @default(0)
+  maxMembers Int       @default(5)
+  isActive   Boolean   @default(true)
+  users      User[]
+  project    Project[]
+  creatorId  String    @db.ObjectId
+  creator    User      @relation("TeamCreator", fields: [creatorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  college    College?  @relation(fields: [collegeId], references: [id])
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+
+  // Task Tracker Relations
+  teamTasks Task[]    @relation("TeamTasks")
+}
+
+model College {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  tag          String   @unique
+  name         String
+  mediaLink    String?
+  logoLink     String?
+  details      String?
+  eventDetails String?
+  team         Team[]
+  organizers   String[]
+  User         User[]
+}
+
+type Project {
+  name         String
+  description  String
+  mediaLinks   String[]
+  projectLinks String[]
+}
+
+enum Roles {
+  ADMIN
+
+  USER
+  MEMBER
+}
+
+model Task {
+  id          String       @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String
+  status      TaskStatus   @default(DRAFT)
+  priority    TaskPriority @default(MEDIUM)
+  dueDate     DateTime?
+  
+  assignedToId String?     @db.ObjectId
+  assignedTo   User?       @relation("AssignedTasks", fields: [assignedToId], references: [id])
+  
+  assignedById String      @db.ObjectId
+  assignedBy   User        @relation("TaskCreator", fields: [assignedById], references: [id])
+  
+  teamIdString String?     @db.ObjectId
+  team         Team?       @relation("TeamTasks", fields: [teamIdString], references: [id])
+
+  attachments Attachment[]
+  comments    Comment[]
+  activityLogs ActivityLog[]
+
+  created_at  DateTime     @default(now())
+  updated_at  DateTime     @updatedAt
+}
+
+enum TaskStatus {
+  DRAFT
+  ASSIGNED
+  ACCEPTED
+  IN_PROGRESS
+  COMPLETED
+  CLOSED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model Comment {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  content   String
+  taskId    String   @db.ObjectId
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorId  String   @db.ObjectId
+  author    User     @relation(fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model ActivityLog {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  action    String
+  taskId    String   @db.ObjectId
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id])
+  timestamp DateTime @default(now())
+}
+
+model Attachment {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  url        String
+  filename   String
+  uploadedBy String   @db.ObjectId
+  uploader   User     @relation(fields: [uploadedBy], references: [id])
+  taskId     String   @db.ObjectId
+  task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+}
