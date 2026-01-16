@@ -73,21 +73,49 @@ export async function POST(request: NextRequest) {
 
     const hashedPassword = await hash(password, 12);
 
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email: email.toLowerCase(),
-        password: hashedPassword,
-        role: "USER",
-        collegeId: college.id,
-      },
+
+    // Bypass Prisma transaction requirement for standalone MongoDB
+    // const user = await prisma.user.create({ ... })
+
+    // Generate ObjectId for new user if needed, or let Mongo generate it.
+    // However, we want to return the user object.
+
+    const now = new Date();
+
+    // Construct the document for insertion
+    // Note: Relations (collegeId) must be stored as ObjectId
+
+    const insertDoc = {
+      name,
+      email: email.toLowerCase(),
+      password: hashedPassword,
+      role: "USER",
+      collegeId: { "$oid": college.id },
+      isVerified: false,
+      created_at: { "$date": now.toISOString() },
+      updated_at: { "$date": now.toISOString() }
+    };
+
+    // We can use runCommandRaw to insert
+    const rawRes = await prisma.$runCommandRaw({
+      insert: "User",
+      documents: [insertDoc]
+    }) as any;
+
+    if (rawRes.writeErrors && rawRes.writeErrors.length > 0) {
+      throw new Error("Failed to insert user via raw command");
+    }
+
+    // Fetch the created user to return it (and verify it exists)
+    const user = await prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
       select: {
         id: true,
         name: true,
         email: true,
         role: true,
-        collegeId: true,
-      },
+        collegeId: true
+      }
     });
 
     return NextResponse.json(
@@ -99,6 +127,7 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error("Error in registration:", error);
+
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

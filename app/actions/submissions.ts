@@ -14,6 +14,7 @@ const submitWorkSchema = z.object({
     })).optional(),
 });
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function submitWork(taskId: string, prevState: any, formData: FormData) {
     const session = await auth();
     if (!session) return { error: "Unauthorized" };

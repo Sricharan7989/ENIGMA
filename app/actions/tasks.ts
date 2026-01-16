@@ -15,6 +15,7 @@ const createTaskSchema = z.object({
     teamIdString: z.string().optional(), // For team assignment
 });
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function createTask(prevState: any, formData: FormData) {
     const session = await auth();
     if (!session || session.user.role !== "ADMIN") {
