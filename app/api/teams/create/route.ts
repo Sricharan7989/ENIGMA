@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { z } from "zod";
+import clientPromise from "@/lib/mongodb";
+import { ObjectId } from "mongodb";
 
 function generateTeamCode(): string {
   const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -81,35 +83,53 @@ export async function POST(request: NextRequest) {
     }
 
     let teamCode = generateTeamCode();
-    let codeExists = await prisma.team.findUnique({ where: { teamCode } });
+    let codeExists = await prisma.team.findFirst({ where: { teamCode } });
 
     while (codeExists) {
       teamCode = generateTeamCode();
-      codeExists = await prisma.team.findUnique({ where: { teamCode } });
+      codeExists = await prisma.team.findFirst({ where: { teamCode } });
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-      const team = await tx.team.create({
-        data: {
-          name: teamName,
-          collegeId: existingUser.collegeId,
-          teamCode,
-          ClubName: clubName,
-          maxMembers,
-          creatorId: userId,
-        },
-      });
+    // Use native MongoDB client to bypass Prisma's Replica Set requirement for relations
+    const client = await clientPromise;
+    const db = client.db();
 
-      await tx.user.update({
-        where: { id: userId },
-        data: {
-          teamId: team.id,
+    const newTeamId = new ObjectId();
+    const teamDoc = {
+      _id: newTeamId,
+      name: teamName,
+      teamCode,
+      collegeId: new ObjectId(existingUser.collegeId),
+      ClubName: clubName || null,
+      maxMembers: maxMembers,
+      isActive: true, // default
+      isVerified: false, // default
+      points: 0, // default
+      creatorId: new ObjectId(userId),
+      created_at: new Date(),
+      updated_at: new Date()
+    };
+
+    await db.collection("Team").insertOne(teamDoc);
+
+    await db.collection("User").updateOne(
+      { _id: new ObjectId(userId) },
+      {
+        $set: {
+          teamId: newTeamId,
           isTeamLeader: true,
-        },
-      });
+          updated_at: new Date()
+        }
+      }
+    );
 
-      return team;
-    });
+    // Return the constructed team object (mapped back to string IDs for frontend)
+    const result = {
+      ...teamDoc,
+      id: teamDoc._id.toString(),
+      collegeId: teamDoc.collegeId.toString(),
+      creatorId: teamDoc.creatorId.toString(),
+    };
 
     return NextResponse.json({
       success: true,
@@ -125,8 +145,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Error in team creation:", error);
+    const message = error instanceof Error ? error.message : "Internal server error";
     return NextResponse.json(
-      { success: false, error: "Internal server error" },
+      { success: false, error: message },
       { status: 500 }
     );
   }

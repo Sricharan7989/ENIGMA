@@ -1,139 +1,68 @@
-import Link from "next/link";
-import { auth } from "@/lib/auth";
-import Navigation from "@/components/Navigation";
-import { getUserData } from "@/lib/actions";
+"use client";
 
-export default async function Home() {
-  const session = await auth();
-  const userData = session?.user?.id ? await getUserData() : null;
+import Link from "next/link";
+import Image from "next/image";
+import { useSession } from "next-auth/react";
+import Navigation from "@/components/Navigation";
+
+export default function Home() {
+  const { data: session } = useSession();
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-black text-white overflow-hidden flex flex-col">
       <Navigation />
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="text-center">
-          <h1 className="text-5xl font-bold text-gray-800 mb-6">
-            Welcome to IIIT Portal
-          </h1>
-          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-            Connect with your fellow IIIT students, create teams, and
-            participate in amazing events and competitions.
-          </p>
+      <main className="flex-grow relative flex flex-col items-center justify-end pb-20">
+        {/* Background Image - Full Screen Cover */}
+        <div className="absolute inset-0 z-0">
+          <Image
+            src="/images/task-assignment.jpg"
+            alt="Task Assignment Background"
+            fill
+            className="object-contain opacity-100"
+            priority
+          />
+          {/* Gradient Overlay: Clear at top/center to highlight image, dark at bottom for button readability */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+        </div>
 
-          {session?.user ? (
-            <div className="space-y-6">
-              <div className="bg-white p-6 rounded-lg shadow-md max-w-md mx-auto">
-                <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-                  Hello, {session.user.name || session.user.email}!
-                </h2>
-                <p className="text-gray-600 mb-4">
-                  You&apos;re successfully logged in with your IIIT account.
-                </p>
+        {/* Content Wrapper - Overlaid on background */}
+        <div className="relative z-10 flex flex-col items-center justify-center gap-8">
 
-                {userData?.teamId ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-center space-x-2">
-                      <span className="text-green-600">✓</span>
-                      <span className="text-gray-700">
-                        You&apos;re part of a team
-                      </span>
-                      {userData.isTeamLeader && (
-                        <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                          Leader
-                        </span>
-                      )}
-                    </div>
-                    <Link
-                      href="/teams"
-                      className="block w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                    >
-                      View Team Dashboard
-                    </Link>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <p className="text-gray-500 text-sm">
-                      You haven&apos;t joined or created a team yet
-                    </p>
-                    <Link
-                      href="/teams"
-                      className="block w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-                    >
-                      Create or Join Team
-                    </Link>
-                  </div>
-                )}
-              </div>
-
-              <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-                <div className="bg-white p-6 rounded-lg shadow-md">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                    Team Management
-                  </h3>
-                  <p className="text-gray-600 text-sm mb-4">
-                    Create teams, invite members using team codes, and
-                    collaborate effectively.
-                  </p>
-                  <Link
-                    href="/teams"
-                    className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                  >
-                    Manage Teams →
-                  </Link>
-                </div>
-
-                <div className="bg-white p-6 rounded-lg shadow-md">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                    Events
-                  </h3>
-                  <p className="text-gray-600 text-sm mb-4">
-                    Participate in hackathons, competitions, and other exciting
-                    events.
-                  </p>
-                  <span className="text-gray-400 text-sm">Coming Soon</span>
-                </div>
-
-                <div className="bg-white p-6 rounded-lg shadow-md">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                    Projects
-                  </h3>
-                  <p className="text-gray-600 text-sm mb-4">
-                    Showcase your projects and collaborate with other students.
-                  </p>
-                  <span className="text-gray-400 text-sm">Coming Soon</span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              <div className="bg-white p-8 rounded-lg shadow-md max-w-md mx-auto">
-                <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-                  Get Started
-                </h2>
-                <p className="text-gray-600 mb-6">
-                  Sign in with your IIIT email to access team management and
-                  events.
-                </p>
-                <div className="space-y-3">
-                  <Link
-                    href="/auth/signin"
-                    className="block w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-center"
-                  >
-                    Sign In
-                  </Link>
-                  <Link
-                    href="/auth/signup"
-                    className="block w-full px-4 py-2 border border-blue-600 text-blue-600 rounded-md hover:bg-blue-50 transition-colors text-center"
-                  >
-                    Create Account
-                  </Link>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Main Action Buttons */}
+          <div className="flex flex-col md:flex-row items-center justify-center gap-6">
+            {session ? (
+              <>
+                <Link
+                  href="/teams"
+                  className="bg-white text-black px-8 py-3 font-mono font-bold uppercase tracking-wider hover:bg-gray-200 transition-colors border-2 border-transparent hover:border-white shadow-[0_0_20px_rgba(255,255,255,0.4)]"
+                >
+                  <span className="mr-2">&gt;</span> Initialize_Team
+                </Link>
+                <Link
+                  href="/dashboard"
+                  className="bg-transparent text-white px-8 py-3 font-mono font-bold uppercase tracking-wider border-2 border-white hover:bg-white hover:text-black transition-colors"
+                >
+                  Access_Tasks
+                </Link>
+              </>
+            ) : (
+              <Link
+                href="/auth/signin"
+                className="bg-white text-black px-12 py-4 font-mono font-bold uppercase tracking-widest hover:bg-gray-200 transition-transform hover:scale-110 shadow-[0_0_30px_rgba(255,255,255,0.5)] border-2 border-white"
+              >
+                [ ENTER_SYSTEM ]
+              </Link>
+            )}
+          </div>
         </div>
       </main>
+
+      {/* Footer / Status Bar */}
+      <footer className="relative z-10 border-t border-white/20 p-4 font-mono text-xs text-gray-500 flex justify-between bg-black/50 backdrop-blur-sm">
+        <span>SYS.STATUS: ONLINE</span>
+        <span>ENIGMA.OS v2.0</span>
+      </footer>
     </div>
   );
 }

@@ -87,93 +87,83 @@ export default function CreateTeamForm({ onSuccess }: CreateTeamFormProps) {
   };
 
   return (
-    <div className="max-w-md mx-auto bg-white p-6 rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">
-        Create Your Team
+    <div className="enigma-box border-t-0 rounded-none shadow-none p-8 animate-in fade-in duration-500">
+      <h2 className="text-2xl font-mono font-bold text-white mb-6 uppercase tracking-wider">
+        Initialize New Unit
       </h2>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-          {error}
+        <div className="mb-6 p-3 border border-red-500 bg-red-900/20 text-red-500 text-sm font-mono">
+          [ERROR] {error}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-6">
         <div>
-          <label
-            htmlFor="teamName"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Team Name *
+          <label className="block text-xs font-mono text-gray-400 mb-2 uppercase tracking-wide">
+            Unit Designation (Name)
           </label>
           <input
             type="text"
-            id="teamName"
+            required
+            aria-label="Team Name"
             name="teamName"
+            className="enigma-input font-mono uppercase"
+            placeholder="ENTER_TEAM_NAME"
             value={formData.teamName}
             onChange={handleChange}
-            required
-            minLength={2}
-            maxLength={50}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter your team name"
           />
         </div>
 
         <div>
-          <label
-            htmlFor="clubName"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Club Name (Optional)
+          <label className="block text-xs font-mono text-gray-400 mb-2 uppercase tracking-wide">
+            Affiliation (Club Name) <span className="text-gray-600">[OPTIONAL]</span>
           </label>
           <input
             type="text"
-            id="clubName"
+            aria-label="Club Name"
             name="clubName"
+            className="enigma-input font-mono uppercase"
+            placeholder="ENTER_CLUB_NAME"
             value={formData.clubName}
             onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter club name if any"
           />
         </div>
 
         <div>
-          <label
-            htmlFor="maxMembers"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Maximum Members
+          <label className="block text-xs font-mono text-gray-400 mb-2 uppercase tracking-wide">
+            Max Operatives
           </label>
-          <select
-            id="maxMembers"
-            name="maxMembers"
-            value={formData.maxMembers}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {[2, 3].map((num) => (
-              <option key={num} value={num}>
-                {num}
-              </option>
-            ))}
-          </select>
+          <div className="flex items-center space-x-4 border border-white/20 p-4 bg-black">
+            <input
+              type="range"
+              min="1"
+              max="5"
+              step="1"
+              name="maxMembers"
+              value={formData.maxMembers}
+              onChange={handleChange}
+              className="w-full accent-white h-1 bg-gray-800 rounded-none appearance-none cursor-pointer"
+            />
+            <span className="font-mono text-xl text-white font-bold w-12 text-center border-l border-white/20 pl-4">{formData.maxMembers}</span>
+          </div>
         </div>
 
         <button
           type="submit"
-          disabled={loading || !formData.teamName.trim()}
-          className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          disabled={loading}
+          className="w-full enigma-button bg-white text-black hover:bg-gray-200 mt-4 h-12 flex items-center justify-center font-bold"
         >
-          {loading ? "Creating Team..." : "Create Team"}
+          {loading ? (
+            <span className="animate-pulse">INITIALIZING...</span>
+          ) : (
+            "ESTABLISH UNIT"
+          )}
         </button>
       </form>
 
-      <div className="mt-4 text-sm text-gray-600 text-center">
-        <p>
-          After creating your team, you&apos;ll receive a unique team code to
-          share with your teammates.
-        </p>
+      <div className="mt-6 text-[10px] font-mono text-gray-600 text-center uppercase tracking-widest border-t border-white/10 pt-4">
+        A secure comms channel will be generated upon unit establishment.
       </div>
     </div>
   );

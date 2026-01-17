@@ -71,7 +71,6 @@ export default function SignUp() {
       });
 
       if (!response.ok) {
-        // try to parse JSON body for a meaningful message
         let data: { error?: string } | null = null;
         try {
           data = await response.json();
@@ -79,8 +78,6 @@ export default function SignUp() {
           data = null;
         }
 
-        // If the backend returned a specific error message about domain mismatch,
-        // surface a friendly client error. Use HTTP status to distinguish server errors.
         if (response.status === 400) {
           const msg = data?.error?.toLowerCase() || "";
           if (
@@ -102,13 +99,11 @@ export default function SignUp() {
           return;
         }
 
-        // fallback: any other non-ok
         setError(data?.error || "Registration failed");
         setIsLoading(false);
         return;
       }
 
-      // Auto sign in after successful registration
       const result = await signIn("credentials", {
         email: formData.email,
         password: formData.password,
@@ -136,23 +131,20 @@ export default function SignUp() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div className="min-h-screen flex items-center justify-center bg-black py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8 bg-white p-10 shadow-[0_0_50px_rgba(255,255,255,0.1)] animate-in fade-in duration-700">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Create your IIIT Portal account
+          <h2 className="mt-2 text-center text-3xl font-mono font-bold text-black uppercase tracking-tighter">
+            Initialize Account
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Use your IIIT institution email address
+          <p className="mt-2 text-center text-xs font-mono text-gray-500 uppercase tracking-widest">
+            Create your digital identity
           </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
-              <label
-                htmlFor="name"
-                className="block text-sm font-medium text-gray-700"
-              >
+              <label htmlFor="name" className="sr-only">
                 Full Name
               </label>
               <input
@@ -161,18 +153,15 @@ export default function SignUp() {
                 type="text"
                 autoComplete="name"
                 required
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                placeholder="Enter your full name"
+                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-black font-mono text-sm"
+                placeholder="FULL ALIAS (NAME)"
                 value={formData.name}
                 onChange={handleChange}
               />
             </div>
 
             <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-gray-700"
-              >
+              <label htmlFor="email" className="sr-only">
                 Email Address
               </label>
               <input
@@ -181,18 +170,15 @@ export default function SignUp() {
                 type="email"
                 autoComplete="email"
                 required
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                placeholder="student@iiits.ac.in"
+                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-black font-mono text-sm"
+                placeholder="INSTITUTE EMAIL"
                 value={formData.email}
                 onChange={handleChange}
               />
             </div>
 
             <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-gray-700"
-              >
+              <label htmlFor="password" className="sr-only">
                 Password
               </label>
               <input
@@ -201,18 +187,15 @@ export default function SignUp() {
                 type="password"
                 autoComplete="new-password"
                 required
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                placeholder="Password (min 6 characters)"
+                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-black font-mono text-sm"
+                placeholder="PASSWORD (MIN 6 CHARS)"
                 value={formData.password}
                 onChange={handleChange}
               />
             </div>
 
             <div>
-              <label
-                htmlFor="confirmPassword"
-                className="block text-sm font-medium text-gray-700"
-              >
+              <label htmlFor="confirmPassword" className="sr-only">
                 Confirm Password
               </label>
               <input
@@ -221,8 +204,8 @@ export default function SignUp() {
                 type="password"
                 autoComplete="new-password"
                 required
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                placeholder="Confirm your password"
+                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-black font-mono text-sm"
+                placeholder="CONFIRM PASSWORD"
                 value={formData.confirmPassword}
                 onChange={handleChange}
               />
@@ -230,8 +213,14 @@ export default function SignUp() {
           </div>
 
           {error && (
-            <div className="rounded-md bg-red-50 p-4">
-              <div className="text-sm text-red-700">{error}</div>
+            <div className="bg-red-50 border-l-4 border-red-500 p-4">
+              <div className="flex">
+                <div className="ml-3">
+                  <p className="text-sm text-red-700 font-mono">
+                    [ERROR]: {error}
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
@@ -239,18 +228,18 @@ export default function SignUp() {
             <button
               type="submit"
               disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-mono font-bold uppercase tracking-widest text-white bg-black hover:bg-gray-800 hover:scale-[1.02] transform transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
             >
-              {isLoading ? "Creating account..." : "Create account"}
+              {isLoading ? "PROCESSING..." : "REGISTER IDENTITY"}
             </button>
           </div>
 
-          <div className="text-center">
+          <div className="text-center font-mono text-xs">
             <Link
               href="/auth/signin"
-              className="font-medium text-indigo-600 hover:text-indigo-500"
+              className="text-gray-600 hover:text-black hover:underline transition-all"
             >
-              Already have an account? Sign in
+              [ ALREADY REGISTERED? SIGN IN ]
             </Link>
           </div>
         </form>

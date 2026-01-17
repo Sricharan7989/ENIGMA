@@ -30,7 +30,6 @@ export default function SignIn() {
                 return;
             }
 
-            // Get the updated session
             const session = await getSession();
             if (session) {
                 router.push("/");
@@ -43,18 +42,18 @@ export default function SignIn() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-md w-full space-y-8">
+        <div className="min-h-screen flex items-center justify-center bg-black py-12 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-md w-full space-y-8 bg-white p-10 shadow-[0_0_50px_rgba(255,255,255,0.1)] animate-in fade-in duration-700">
                 <div>
-                    <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-                        Sign in to IIIT Portal
+                    <h2 className="mt-2 text-center text-4xl font-mono font-bold text-black uppercase tracking-tighter">
+                        ENIGMA ACCESS
                     </h2>
-                    <p className="mt-2 text-center text-sm text-gray-600">
-                        Use your IIIT institution email address
+                    <p className="mt-2 text-center text-xs font-mono text-gray-500 uppercase tracking-widest">
+                        Enter credentials to proceed
                     </p>
                 </div>
                 <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-                    <div className="rounded-md shadow-sm -space-y-px">
+                    <div className="space-y-4">
                         <div>
                             <label htmlFor="email" className="sr-only">
                                 Email address
@@ -65,8 +64,8 @@ export default function SignIn() {
                                 type="email"
                                 autoComplete="email"
                                 required
-                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                                placeholder="Email address (e.g., student@iiits.ac.in)"
+                                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-black font-mono text-sm"
+                                placeholder="INSTITUTE EMAIL ID"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                             />
@@ -81,8 +80,8 @@ export default function SignIn() {
                                 type="password"
                                 autoComplete="current-password"
                                 required
-                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                                placeholder="Password"
+                                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-black font-mono text-sm"
+                                placeholder="PASSWORD"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                             />
@@ -90,8 +89,14 @@ export default function SignIn() {
                     </div>
 
                     {error && (
-                        <div className="rounded-md bg-red-50 p-4">
-                            <div className="text-sm text-red-700">{error}</div>
+                        <div className="bg-red-50 border-l-4 border-red-500 p-4">
+                            <div className="flex">
+                                <div className="ml-3">
+                                    <p className="text-sm text-red-700 font-mono">
+                                        [ERROR]: {error}
+                                    </p>
+                                </div>
+                            </div>
                         </div>
                     )}
 
@@ -99,18 +104,18 @@ export default function SignIn() {
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-mono font-bold uppercase tracking-widest text-white bg-black hover:bg-gray-800 hover:scale-[1.02] transform transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                         >
-                            {isLoading ? "Signing in..." : "Sign in"}
+                            {isLoading ? "AUTHENTICATING..." : "INITIATE SESSION"}
                         </button>
                     </div>
 
-                    <div className="text-center">
+                    <div className="text-center font-mono text-xs">
                         <Link
                             href="/auth/signup"
-                            className="font-medium text-indigo-600 hover:text-indigo-500"
+                            className="text-gray-600 hover:text-black hover:underline transition-all"
                         >
-                            Don&apos;t have an account? Sign up
+                            [ NO CREDENTIALS? CREATE ACCOUNT ]
                         </Link>
                     </div>
                 </form>

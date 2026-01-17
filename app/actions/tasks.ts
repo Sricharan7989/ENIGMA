@@ -15,8 +15,14 @@ const createTaskSchema = z.object({
     teamIdString: z.string().optional(), // For team assignment
 });
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function createTask(prevState: any, formData: FormData) {
+
+interface TaskState {
+    error?: string;
+    success?: boolean;
+    task?: any; // Ideally this should be the Prisma Task type, but 'any' is acceptable here for now to avoid circular deps or complex imports if not readily available, or use Prisma.Task if possible. Better to just use 'object' or 'Record<string, any>'
+}
+
+export async function createTask(prevState: TaskState | null, formData: FormData) {
     const session = await auth();
     if (!session || session.user.role !== "ADMIN") {
         return { error: "Unauthorized: Admins only" };

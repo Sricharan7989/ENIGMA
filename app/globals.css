@@ -10,4 +10,16 @@
   .text-glow {
     text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
   }
+
+  .enigma-box {
+    @apply border border-white p-4 bg-black text-white;
+  }
+
+  .enigma-button {
+    @apply border border-white px-4 py-2 bg-black text-white hover:bg-white hover:text-black transition-colors font-mono uppercase tracking-wider;
+  }
+
+  .enigma-input {
+    @apply w-full bg-black border border-white p-2 text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-white;
+  }
 }

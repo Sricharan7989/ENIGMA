@@ -78,51 +78,52 @@ export default function JoinTeamForm({ onSuccess }: JoinTeamFormProps) {
   };
 
   return (
-    <div className="max-w-md mx-auto bg-white p-6 rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">
-        Join a Team
+    <div className="enigma-box border-t-0 rounded-none shadow-none p-8 animate-in fade-in duration-500">
+      <h2 className="text-2xl font-mono font-bold text-white mb-6 uppercase tracking-wider">
+        Join Existing Unit
       </h2>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-          {error}
+        <div className="mb-6 p-3 border border-red-500 bg-red-900/20 text-red-500 text-sm font-mono">
+          [ERROR] {error}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-6">
         <div>
-          <label
-            htmlFor="teamCode"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Team Code *
+          <label className="block text-xs font-mono text-gray-400 mb-2 uppercase tracking-wide">
+            Access Code
           </label>
           <input
             type="text"
-            id="teamCode"
+            required
+            aria-label="Team Code"
+            className="enigma-input font-mono text-center tracking-[0.5em] text-3xl uppercase placeholder:tracking-normal placeholder:text-base placeholder:normal-case h-16"
+            placeholder="ENTER_CODE"
             value={teamCode}
             onChange={handleCodeChange}
-            required
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-center text-lg font-mono tracking-wider"
-            placeholder="XXXXXX"
             maxLength={6}
           />
-          <p className="text-xs text-gray-500 mt-1">
-            Enter the 6-character team code shared by your team leader
+          <p className="mt-2 text-[10px] font-mono text-gray-500 uppercase">
+            Input the 6-character encryption key provided by the Unit Leader.
           </p>
         </div>
 
         <button
           type="submit"
           disabled={loading || teamCode.length !== 6}
-          className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          className="w-full enigma-button bg-white text-black hover:bg-gray-200 mt-4 h-12 flex items-center justify-center font-bold"
         >
-          {loading ? "Joining Team..." : "Join Team"}
+          {loading ? (
+            <span className="animate-pulse">AUTHENTICATING...</span>
+          ) : (
+            "ACCESS UNIT"
+          )}
         </button>
       </form>
 
-      <div className="mt-4 text-sm text-gray-600 text-center">
-        <p>Ask your team leader for the team code to join their team.</p>
+      <div className="mt-6 text-[10px] font-mono text-gray-600 text-center uppercase tracking-widest border-t border-white/10 pt-4">
+        Unauthorized access attempts will be logged.
       </div>
     </div>
   );

@@ -14,17 +14,31 @@ const submitWorkSchema = z.object({
     })).optional(),
 });
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function submitWork(taskId: string, prevState: any, formData: FormData) {
+
+interface SubmissionState {
+    error?: string;
+    success?: boolean;
+}
+
+export async function submitWork(taskId: string, prevState: SubmissionState | null, formData: FormData) {
     const session = await auth();
     if (!session) return { error: "Unauthorized" };
 
-    const content = formData.get("content") as string;
-    const attachmentUrls = formData.getAll("attachmentUrls") as string[];
-    const attachmentNames = formData.getAll("attachmentNames") as string[];
+    const rawData = {
+        content: formData.get("content") as string,
+        attachments: (formData.getAll("attachmentUrls") as string[]).map((url, i) => ({
+            url,
+            filename: (formData.getAll("attachmentNames")[i] as string) || 'unknown'
+        }))
+    };
 
-    // Validate simple inputs
-    if (!content) return { error: "Description required" };
+    const parsed = submitWorkSchema.safeParse(rawData);
+
+    if (!parsed.success) {
+        return { error: parsed.error.issues[0].message };
+    }
+
+    const { content, attachments } = parsed.data;
 
     try {
         // Verify task assignment
@@ -48,13 +62,13 @@ export async function submitWork(taskId: string, prevState: any, formData: FormD
         // Let's assume this is the submission action.
 
         // 1. Save attachments
-        if (attachmentUrls.length > 0) {
-            await Promise.all(attachmentUrls.map((url, idx) =>
+        if (attachments && attachments.length > 0) {
+            await Promise.all(attachments.map(att =>
                 prisma.attachment.create({
                     data: {
                         taskId,
-                        url,
-                        filename: attachmentNames[idx] || 'unknown',
+                        url: att.url,
+                        filename: att.filename,
                         uploadedBy: session.user.id
                     }
                 })
@@ -109,10 +123,18 @@ export async function acceptTask(taskId: string) {
 
         if (task.status !== 'ASSIGNED') return { error: "Task cannot be accepted at this stage" };
 
-        await prisma.task.update({
-            where: { id: taskId },
-            data: { status: 'ACCEPTED' }
-        });
+        try {
+            await prisma.task.update({
+                where: { id: taskId, status: 'ASSIGNED' }, // Atomic transition
+                data: { status: 'ACCEPTED' }
+            });
+        } catch (err: unknown) {
+            // P2025 is Record to update not found
+            if (typeof err === 'object' && err && 'code' in err && err.code === 'P2025') {
+                return { error: "Task was already accepted or modified" };
+            }
+            throw err;
+        }
 
         await prisma.activityLog.create({
             data: {
@@ -148,10 +170,20 @@ export async function markTaskComplete(taskId: string) {
 
         if (!isAssignedUser && !isAssignedTeamMember) return { error: "Unauthorized" };
 
-        await prisma.task.update({
-            where: { id: taskId },
+        const validStatuses = ['ACCEPTED', 'IN_PROGRESS'];
+        if (!validStatuses.includes(task.status)) return { error: "Task must be accepted before completion" };
+
+        const result = await prisma.task.updateMany({
+            where: {
+                id: taskId,
+                status: { in: ['ACCEPTED', 'IN_PROGRESS'] }
+            },
             data: { status: 'COMPLETED' }
         });
+
+        if (result.count === 0) {
+            return { error: "Task status changed or already completed" };
+        }
 
         await prisma.activityLog.create({
             data: {

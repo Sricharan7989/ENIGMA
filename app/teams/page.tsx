@@ -76,10 +76,10 @@ export default function TeamManagement() {
 
   if (status === "loading" || loading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <div className="animate-spin h-12 w-12 border-4 border-white border-t-transparent rounded-full mx-auto"></div>
+          <p className="mt-4 text-white font-mono tracking-widest animate-pulse">LOADING_DATA...</p>
         </div>
       </div>
     );
@@ -90,15 +90,16 @@ export default function TeamManagement() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
-      <div className="container mx-auto px-4">
+    <div className="min-h-screen bg-black py-12">
+      <div className="container mx-auto px-4 max-w-5xl">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">
-            Team Management
+        <div className="text-center mb-12">
+          <h1 className="text-5xl md:text-6xl font-black font-mono text-white mb-2 tracking-tighter uppercase relative inline-block">
+            <span className="relative z-10">Unit Management</span>
+            <span className="absolute -inset-1 bg-white/10 blur-xl -z-10"></span>
           </h1>
-          <p className="text-gray-600">
-            Create or join a team to participate in events
+          <p className="text-gray-500 font-mono tracking-widest text-sm uppercase">
+            [ SECURE TERMINAL ACCESS GRANTED ]
           </p>
         </div>
 
@@ -107,33 +108,31 @@ export default function TeamManagement() {
           <TeamDashboard team={teamData} isLeader={isLeader} />
         ) : (
           // Show create/join forms if user doesn't have a team
-          <div className="max-w-2xl mx-auto">
+          <div className="max-w-xl mx-auto">
             {/* Tab Navigation */}
-            <div className="flex mb-6">
+            <div className="flex mb-0">
               <button
                 onClick={() => setActiveTab("create")}
-                className={`flex-1 py-3 px-4 text-center font-medium rounded-l-lg border-2 ${
-                  activeTab === "create"
-                    ? "bg-blue-600 text-white border-blue-600"
-                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                }`}
+                className={`flex-1 py-4 px-4 text-center font-mono font-bold uppercase tracking-wider transition-all border border-b-0 ${activeTab === "create"
+                    ? "bg-white text-black border-white"
+                    : "bg-black text-gray-500 border-white/30 hover:text-white hover:bg-white/5"
+                  }`}
               >
-                Create Team
+                Create_Unit
               </button>
               <button
                 onClick={() => setActiveTab("join")}
-                className={`flex-1 py-3 px-4 text-center font-medium rounded-r-lg border-2 border-l-0 ${
-                  activeTab === "join"
-                    ? "bg-green-600 text-white border-green-600"
-                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                }`}
+                className={`flex-1 py-4 px-4 text-center font-mono font-bold uppercase tracking-wider transition-all border border-b-0 border-l-0 ${activeTab === "join"
+                    ? "bg-white text-black border-white"
+                    : "bg-black text-gray-500 border-white/30 hover:text-white hover:bg-white/5"
+                  }`}
               >
-                Join Team
+                Join_Unit
               </button>
             </div>
 
             {/* Tab Content */}
-            <div className="bg-white rounded-lg shadow-lg p-1">
+            <div className="bg-black border border-white p-1">
               {activeTab === "create" ? (
                 <CreateTeamForm onSuccess={handleTeamAction} />
               ) : (
@@ -142,27 +141,25 @@ export default function TeamManagement() {
             </div>
 
             {/* Info Section */}
-            <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-blue-900 mb-3">
-                How it works:
+            <div className="mt-8 border border-white/20 p-6 bg-white/5">
+              <h3 className="text-lg font-mono font-bold text-white mb-4 uppercase flex items-center">
+                <span className="w-2 h-2 bg-white mr-3"></span> Protocol Instructions
               </h3>
-              <div className="grid md:grid-cols-2 gap-4 text-sm text-blue-800">
+              <div className="grid md:grid-cols-2 gap-8 text-xs font-mono text-gray-400">
                 <div>
-                  <h4 className="font-semibold mb-2">Creating a Team:</h4>
-                  <ul className="space-y-1">
-                    <li>• Set your team name and details</li>
-                    <li>• Get a unique 6-character team code</li>
-                    <li>• Share the code with teammates</li>
-                    <li>• Manage your team members</li>
+                  <h4 className="font-bold text-white mb-2 uppercase tracking-wide border-b border-gray-700 pb-1">Initiating New Unit:</h4>
+                  <ul className="space-y-2 list-none">
+                    <li>{">"} Define Unit Designation</li>
+                    <li>{">"} Receive Encrypted Access Code</li>
+                    <li>{">"} Distribute Code needed for Operative recruitment</li>
                   </ul>
                 </div>
                 <div>
-                  <h4 className="font-semibold mb-2">Joining a Team:</h4>
-                  <ul className="space-y-1">
-                    <li>• Get team code from team leader</li>
-                    <li>• Enter the 6-character code</li>
-                    <li>• Join instantly if space available</li>
-                    <li>• Collaborate with teammates</li>
+                  <h4 className="font-bold text-white mb-2 uppercase tracking-wide border-b border-gray-700 pb-1">Joining Existing Unit:</h4>
+                  <ul className="space-y-2 list-none">
+                    <li>{">"} Obtain Access Code from Leader</li>
+                    <li>{">"} Input 6-Character Key</li>
+                    <li>{">"} Await Authentication</li>
                   </ul>
                 </div>
               </div>

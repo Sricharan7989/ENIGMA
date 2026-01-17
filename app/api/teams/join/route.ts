@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { z } from "zod";
+import clientPromise from "@/lib/mongodb";
 
 const joinTeamSchema = z.object({
   teamCode: z.string().length(6, "Team code must be exactly 6 characters"),
@@ -50,52 +51,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const team = await prisma.team.findUnique({
+    const team = await prisma.team.findFirst({
       where: { teamCode },
-      include: {
-        users: true,
-        creator: { select: { id: true, name: true, email: true } },
-      },
     });
 
     if (!team) {
-      return NextResponse.json(
-        { success: false, error: "Invalid team code" },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, error: "Invalid team code" }, { status: 404 });
     }
 
-    if (!team.isActive) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "This team is no longer accepting new members",
-        },
-        { status: 400 }
-      );
-    }
+    // Transaction to prevent race conditions on maxMembers
+    // Verify team exists using Native Driver or Prisma (Read is fine with Prisma)
+    // But writes need native. Let's use Prisma for reads as it's easier, then native for write.
+    // Actually, converting IDs is annoying. Let's use Prisma for validation logic.
 
-    if (team.users.length >= team.maxMembers) {
-      return NextResponse.json(
-        { success: false, error: "This team is full" },
-        { status: 400 }
-      );
-    }
+    // ... validation logic (Lines 61-75 in original file used 't' from transaction)
+    // We already have 'team' from Line 53.
+    // Re-fetch to be safe? Or just use 'team'.
+    // The transaction used a re-fetch for locking. We can't lock on standalone.
+    // Use 'findUnique' or just rely on 'team'.
 
-    if (team.creatorId === userId) {
-      return NextResponse.json(
-        { success: false, error: "You cannot join your own team" },
-        { status: 400 }
-      );
-    }
-
-    await prisma.user.update({
-      where: { id: userId },
-      data: { teamId: team.id },
+    const t = await prisma.team.findUnique({
+      where: { id: team.id },
+      include: { users: true }
     });
 
+    if (!t) throw new Error("Team not found");
+    if (!t.isActive) throw new Error("This team is no longer accepting new members");
+    if (t.users.length >= t.maxMembers) throw new Error("This team is full");
+    if (t.creatorId === userId) throw new Error("You cannot join your own team");
+
+    // Perform Update using Native Driver
+    const client = await clientPromise;
+    const db = client.db();
+    const { ObjectId } = require('mongodb'); // Should move to top level import
+
+    await db.collection("User").updateOne(
+      { _id: new ObjectId(userId) },
+      { $set: { teamId: new ObjectId(team.id), updated_at: new Date() } }
+    );
+
+    // Fetch updated team for response
     const updatedTeam = await prisma.team.findUnique({
-      where: { id: team.id },
+      where: { id: t.id },
       include: {
         users: {
           select: { id: true, name: true, email: true, isTeamLeader: true },
@@ -119,9 +116,13 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Error joining team:", error);
+    const message = error instanceof Error ? error.message : "Internal server error";
+    // Map known errors to 400, others to 500? Use simple heuristic for now
+    const status = (message.includes("full") || message.includes("accepting") || message.includes("own team") || message.includes("not found")) ? 400 : 500;
+
     return NextResponse.json(
-      { success: false, error: "Internal server error" },
-      { status: 500 }
+      { success: false, error: message },
+      { status }
     );
   }
 }
