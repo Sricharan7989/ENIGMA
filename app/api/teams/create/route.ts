@@ -20,7 +20,7 @@ const createTeamSchema = z.object({
     .min(2, "Team name must be at least 2 characters")
     .max(50, "Team name must be less than 50 characters"),
   clubName: z.string().optional(),
-  maxMembers: z.number().min(2).max(3).default(3),
+  maxMembers: z.number().min(2).max(100).default(3),
 });
 
 export async function POST(request: NextRequest) {

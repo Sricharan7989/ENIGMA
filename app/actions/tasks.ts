@@ -106,3 +106,115 @@ export async function getTasks(filter: 'ALL' | 'ASSIGNED' | 'TEAM' = 'ALL') {
         orderBy: { dueDate: 'asc' }
     });
 }
+
+export async function deleteTask(taskId: string) {
+    const session = await auth();
+    if (!session || session.user.role !== "ADMIN") return { error: "Unauthorized" };
+
+    try {
+        await prisma.task.delete({ where: { id: taskId } });
+
+        // Activity log is cascade deleted if relation exists, or we log before? 
+        // Usually difficult to log after delete if relation constraint. 
+        // Assuming cascade delete on logs/comments.
+
+        revalidatePath("/admin");
+        revalidatePath("/dashboard");
+        return { success: true };
+    } catch (e) {
+        return { error: "Failed to delete task" };
+    }
+}
+
+export async function closeTask(taskId: string) {
+    const session = await auth();
+    if (!session || session.user.role !== "ADMIN") return { error: "Unauthorized" };
+
+    try {
+        await prisma.task.update({
+            where: { id: taskId },
+            data: { status: "CLOSED" }
+        });
+
+        await prisma.activityLog.create({
+            data: {
+                action: "TASK_CLOSED",
+                taskId,
+                userId: session.user.id
+            }
+        });
+
+        revalidatePath("/admin");
+        revalidatePath(`/tasks/${taskId}`);
+        return { success: true };
+    } catch (e) {
+        return { error: "Failed to close task" };
+    }
+}
+
+export async function reopenTask(taskId: string) {
+    const session = await auth();
+    if (!session || session.user.role !== "ADMIN") return { error: "Unauthorized" };
+
+    try {
+        await prisma.task.update({
+            where: { id: taskId },
+            data: { status: "IN_PROGRESS" } // Or ASSIGNED? Let's say IN_PROGRESS or restore previous. 
+            // Constraint says: Reopen completed tasks.
+        });
+
+        await prisma.activityLog.create({
+            data: {
+                action: "TASK_REOPENED",
+                taskId,
+                userId: session.user.id
+            }
+        });
+
+        revalidatePath("/admin");
+        revalidatePath(`/tasks/${taskId}`);
+        return { success: true };
+    } catch (e) {
+        return { error: "Failed to reopen task" };
+    }
+}
+
+export async function reassignTask(taskId: string, newAssigneeId: string | null, newTeamId: string | null) {
+    const session = await auth();
+    if (!session || session.user.role !== "ADMIN") return { error: "Unauthorized" };
+
+    try {
+        // Need to explicitly clear the other field if switching type? 
+        // Prisma update:
+        const data: any = { status: "ASSIGNED" }; // Reset status on reassign? Usually yes.
+        if (newAssigneeId) {
+            data.assignedToId = newAssigneeId;
+            data.teamIdString = null; // Clear team
+        } else if (newTeamId) {
+            data.teamIdString = newTeamId;
+            data.assignedToId = null; // Clear user
+        } else {
+            return { error: "No assignee provided" };
+        }
+
+        await prisma.task.update({
+            where: { id: taskId },
+            data
+        });
+
+        await prisma.activityLog.create({
+            data: {
+                action: "TASK_REASSIGNED",
+                taskId,
+                userId: session.user.id
+            }
+        });
+
+        revalidatePath("/admin");
+        revalidatePath(`/tasks/${taskId}`);
+        return { success: true };
+    } catch (e) {
+        console.error(e)
+        return { error: "Failed to reassign task" };
+    }
+}

@@ -1,4 +1,3 @@
-
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
@@ -6,6 +5,8 @@ import AnimatedLogo from "@/components/AnimatedLogo";
 import SubmissionForm from "@/components/SubmissionForm";
 import Link from "next/link";
 import { acceptTask } from "@/app/actions/submissions";
+import AdminTaskActions from "@/components/AdminTaskActions";
+import CommentSection from "@/components/CommentSection";
 
 // Server action wrapper for button
 async function acceptAction(taskId: string) {
@@ -38,6 +39,18 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
         return <div className="p-8">Unauthorized</div>;
     }
 
+    // Prepare comments for client component
+    const initialComments = task.comments.map(c => ({
+        id: c.id,
+        content: c.content,
+        createdAt: c.createdAt,
+        author: {
+            name: c.author.name,
+            email: c.author.email,
+            role: c.author.role
+        }
+    }));
+
     return (
         <div className="min-h-screen bg-black text-white p-8 font-sans max-w-5xl mx-auto">
             <header className="flex justify-between items-center mb-8 pb-6 border-b border-white/10">
@@ -55,24 +68,16 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
                         <p className="text-gray-300 whitespace-pre-wrap">{task.description}</p>
                     </div>
 
-                    {/* Submissions / Comments */}
-                    <div>
-                        <h3 className="text-xl font-bold mb-4 border-b border-white/10 pb-2">Activity & Submissions</h3>
-                        <div className="space-y-4">
-                            {task.comments.length === 0 ? <p className="text-gray-500">No activity yet.</p> : (
-                                task.comments.map(c => (
-                                    <div key={c.id} className="bg-zinc-900/30 p-4 border-l-2 border-white">
-                                        <p className="font-bold text-sm mb-1">{c.author.name} <span className="text-gray-500 font-normal">{new Date(c.createdAt).toLocaleString()}</span></p>
-                                        <p className="text-gray-300">{c.content}</p>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
+                    {/* Comments Section */}
+                    <CommentSection
+                        taskId={task.id}
+                        initialComments={initialComments}
+                        currentUserEmail={session.user.email}
+                    />
 
                     {/* Attachments Display */}
                     {task.attachments.length > 0 && (
-                        <div>
+                        <div className="mt-8">
                             <h3 className="text-xl font-bold mb-4 border-b border-white/10 pb-2">Investigative Files</h3>
                             <ul className="space-y-2">
                                 {task.attachments.map(a => (
@@ -94,7 +99,7 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
 
                 <div className="space-y-6">
                     <div className="bg-zinc-900 border border-white/10 p-6">
-                        <h3 className="text-sm text-gray-500 uppercase tracking-widest mb-4">Metada</h3>
+                        <h3 className="text-sm text-gray-500 uppercase tracking-widest mb-4">Metadata</h3>
                         <div className="space-y-2 text-sm">
                             <p><strong>Priority:</strong> <span className={task.priority === 'CRITICAL' ? 'text-red-500' : 'text-white'}>{task.priority}</span></p>
                             <p><strong>Due Date:</strong> {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "None"}</p>
@@ -109,6 +114,11 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
                             </form>
                         )}
                     </div>
+
+                    {/* Admin Actions */}
+                    {isAdmin && (
+                        <AdminTaskActions taskId={task.id} status={task.status} />
+                    )}
 
                     <div className="bg-zinc-900 border border-white/10 p-6 max-h-[400px] overflow-auto">
                         <h3 className="text-sm text-gray-500 uppercase tracking-widest mb-4">Audit Log</h3>
