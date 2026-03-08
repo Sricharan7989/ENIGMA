@@ -48,7 +48,7 @@ export default function Home() {
               </>
             ) : (
               <Link
-                href="/auth/signin"
+                href="/auth/signup"
                 className="bg-white text-black px-12 py-4 font-mono font-bold uppercase tracking-widest hover:bg-gray-200 transition-transform hover:scale-110 shadow-[0_0_30px_rgba(255,255,255,0.5)] border-2 border-white"
               >
                 [ ENTER_SYSTEM ]

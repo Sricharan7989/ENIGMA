@@ -1,220 +1,81 @@
-"use server";
-
+﻿"use server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
 
-// Schema for Task Creation
-const createTaskSchema = z.object({
-    title: z.string().min(3),
-    description: z.string().min(10),
-    priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]),
-    dueDate: z.string().optional(), // ISO string
-    assignedToId: z.string().optional(),
-    teamIdString: z.string().optional(), // For team assignment
-});
-
-
-interface TaskState {
-    error?: string;
-    success?: boolean;
-    task?: any; // Ideally this should be the Prisma Task type, but 'any' is acceptable here for now to avoid circular deps or complex imports if not readily available, or use Prisma.Task if possible. Better to just use 'object' or 'Record<string, any>'
-}
-
-export async function createTask(prevState: TaskState | null, formData: FormData) {
+export async function createTask(prevState: any, formData: FormData) {
     const session = await auth();
-    if (!session || session.user.role !== "ADMIN") {
-        return { error: "Unauthorized: Admins only" };
-    }
-
-    const rawData = {
-        title: formData.get("title") as string,
-        description: formData.get("description") as string,
-        priority: formData.get("priority") as "LOW" | "MEDIUM" | "HIGH" | "CRITICAL",
-        dueDate: formData.get("dueDate") as string,
-        assignedToId: (formData.get("assignedToId") as string) || undefined,
-        teamIdString: (formData.get("teamIdString") as string) || undefined,
-    };
-
-    const parsed = createTaskSchema.safeParse(rawData);
-    if (!parsed.success) {
-        return { error: parsed.error.message };
-    }
-
+    if (!session || session.user.role !== "ADMIN") return { error: "Unauthorized" };
+    const title = formData.get("title") as string;
+    const description = formData.get("description") as string;
+    const priority = (formData.get("priority") as string) || "MEDIUM";
+    const dueDate = formData.get("dueDate") as string;
+    const assignedToId = (formData.get("assignedToId") as string) || undefined;
+    const teamIdString = (formData.get("teamIdString") as string) || undefined;
+    if (!title || title.length < 3) return { error: "Title must be at least 3 characters" };
+    if (!description || description.length < 5) return { error: "Description too short" };
     try {
-        const task = await prisma.task.create({
-            data: {
-                title: parsed.data.title,
-                description: parsed.data.description,
-                priority: parsed.data.priority,
-                dueDate: parsed.data.dueDate ? new Date(parsed.data.dueDate) : undefined,
-                status: "ASSIGNED", // Default to assigned
-                assignedById: session.user.id,
-                assignedToId: parsed.data.assignedToId,
-                teamIdString: parsed.data.teamIdString,
-            },
-        });
-
-        // Log activity
-        await prisma.activityLog.create({
-            data: {
-                action: "TASK_CREATED",
-                taskId: task.id,
-                userId: session.user.id,
-            },
-        });
-
-        revalidatePath("/admin");
-        revalidatePath("/dashboard");
+        const task = await prisma.task.create({ data: {
+            title, description, priority: priority as any, status: "ASSIGNED",
+            dueDate: dueDate ? new Date(dueDate) : undefined,
+            assignedById: session.user.id,
+            assignedToId: assignedToId || undefined,
+            teamIdString: teamIdString || undefined,
+        }});
+        revalidatePath("/admin"); revalidatePath("/dashboard");
         return { success: true, task };
-    } catch (error) {
-        console.error("Failed to create task:", error);
-        return { error: "Failed to create task" };
-    }
+    } catch (e) { console.error(e); return { error: "Failed to create task" }; }
 }
 
-export async function getTasks(filter: 'ALL' | 'ASSIGNED' | 'TEAM' = 'ALL') {
+export async function getTasks() {
     const session = await auth();
     if (!session) return [];
-
-    const { user } = session;
-
-    if (user.role === 'ADMIN') {
+    if (session.user.role === "ADMIN") {
         return await prisma.task.findMany({
-            include: {
-                assignedTo: { select: { name: true, email: true } },
-                team: { select: { name: true } },
-            },
-            orderBy: { created_at: 'desc' }
+            include: { assignedTo: { select: { id: true, name: true, email: true } }, assignedBy: { select: { name: true } }, team: { select: { id: true, name: true } }, _count: { select: { comments: true } } },
+            orderBy: { created_at: "desc" }
         });
     }
-
-    // Convert filter to query
-    // Member sees: Tasks assigned to them OR tasks assigned to their team
     return await prisma.task.findMany({
-        where: {
-            OR: [
-                { assignedToId: user.id },
-                { team: { users: { some: { id: user.id } } } } // If user is in the team
-            ]
-        },
-        include: {
-            assignedBy: { select: { name: true } },
-            team: { select: { name: true } }
-        },
-        orderBy: { dueDate: 'asc' }
+        where: { OR: [{ assignedToId: session.user.id }, { teamIdString: session.user.teamId ?? undefined }] },
+        include: { assignedBy: { select: { name: true } }, team: { select: { name: true } }, _count: { select: { comments: true } } },
+        orderBy: { created_at: "desc" }
     });
 }
 
 export async function deleteTask(taskId: string) {
     const session = await auth();
     if (!session || session.user.role !== "ADMIN") return { error: "Unauthorized" };
-
-    try {
-        await prisma.task.delete({ where: { id: taskId } });
-
-        // Activity log is cascade deleted if relation exists, or we log before? 
-        // Usually difficult to log after delete if relation constraint. 
-        // Assuming cascade delete on logs/comments.
-
-        revalidatePath("/admin");
-        revalidatePath("/dashboard");
-        return { success: true };
-    } catch (e) {
-        return { error: "Failed to delete task" };
-    }
+    try { await prisma.task.delete({ where: { id: taskId } }); revalidatePath("/admin"); return { success: true }; }
+    catch { return { error: "Failed to delete task" }; }
 }
 
 export async function closeTask(taskId: string) {
     const session = await auth();
     if (!session || session.user.role !== "ADMIN") return { error: "Unauthorized" };
-
     try {
-        await prisma.task.update({
-            where: { id: taskId },
-            data: { status: "CLOSED" }
-        });
-
-        await prisma.activityLog.create({
-            data: {
-                action: "TASK_CLOSED",
-                taskId,
-                userId: session.user.id
-            }
-        });
-
-        revalidatePath("/admin");
-        revalidatePath(`/tasks/${taskId}`);
+        await prisma.task.update({ where: { id: taskId }, data: { status: "CLOSED" } });
+        revalidatePath("/admin"); revalidatePath(`/tasks/${taskId}`);
         return { success: true };
-    } catch (e) {
-        return { error: "Failed to close task" };
-    }
+    } catch { return { error: "Failed to close task" }; }
 }
 
 export async function reopenTask(taskId: string) {
     const session = await auth();
     if (!session || session.user.role !== "ADMIN") return { error: "Unauthorized" };
-
     try {
-        await prisma.task.update({
-            where: { id: taskId },
-            data: { status: "IN_PROGRESS" } // Or ASSIGNED? Let's say IN_PROGRESS or restore previous. 
-            // Constraint says: Reopen completed tasks.
-        });
-
-        await prisma.activityLog.create({
-            data: {
-                action: "TASK_REOPENED",
-                taskId,
-                userId: session.user.id
-            }
-        });
-
-        revalidatePath("/admin");
-        revalidatePath(`/tasks/${taskId}`);
+        await prisma.task.update({ where: { id: taskId }, data: { status: "ASSIGNED" } });
+        revalidatePath("/admin"); revalidatePath(`/tasks/${taskId}`);
         return { success: true };
-    } catch (e) {
-        return { error: "Failed to reopen task" };
-    }
+    } catch { return { error: "Failed to reopen task" }; }
 }
 
-export async function reassignTask(taskId: string, newAssigneeId: string | null, newTeamId: string | null) {
+export async function updateTaskStatus(taskId: string, status: string) {
     const session = await auth();
-    if (!session || session.user.role !== "ADMIN") return { error: "Unauthorized" };
-
+    if (!session) return { error: "Unauthorized" };
     try {
-        // Need to explicitly clear the other field if switching type? 
-        // Prisma update:
-        const data: any = { status: "ASSIGNED" }; // Reset status on reassign? Usually yes.
-        if (newAssigneeId) {
-            data.assignedToId = newAssigneeId;
-            data.teamIdString = null; // Clear team
-        } else if (newTeamId) {
-            data.teamIdString = newTeamId;
-            data.assignedToId = null; // Clear user
-        } else {
-            return { error: "No assignee provided" };
-        }
-
-        await prisma.task.update({
-            where: { id: taskId },
-            data
-        });
-
-        await prisma.activityLog.create({
-            data: {
-                action: "TASK_REASSIGNED",
-                taskId,
-                userId: session.user.id
-            }
-        });
-
-        revalidatePath("/admin");
-        revalidatePath(`/tasks/${taskId}`);
+        await prisma.task.update({ where: { id: taskId }, data: { status: status as any } });
+        revalidatePath("/dashboard"); revalidatePath(`/tasks/${taskId}`);
         return { success: true };
-    } catch (e) {
-        console.error(e)
-        return { error: "Failed to reassign task" };
-    }
+    } catch { return { error: "Failed to update status" }; }
 }

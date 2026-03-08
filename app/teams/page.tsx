@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
@@ -68,10 +68,8 @@ export default function TeamManagement() {
     }
   };
 
-  const handleTeamAction = (team: TeamData) => {
-    setTeamData(team);
-    setHasTeam(true);
-    fetchTeamData(); // Refresh data
+  const handleTeamAction = () => {
+    fetchTeamData();
   };
 
   if (status === "loading" || loading) {
@@ -134,9 +132,9 @@ export default function TeamManagement() {
             {/* Tab Content */}
             <div className="bg-black border border-white p-1">
               {activeTab === "create" ? (
-                <CreateTeamForm onSuccess={handleTeamAction} />
+                <CreateTeamForm onSuccess={() => handleTeamAction()} />
               ) : (
-                <JoinTeamForm onSuccess={handleTeamAction} />
+                <JoinTeamForm onSuccess={() => handleTeamAction()} />
               )}
             </div>
 

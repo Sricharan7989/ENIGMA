@@ -1,71 +1,82 @@
+// PLACE AT: app/components/AdminTaskActions.tsx
 "use client";
 
 import { useState } from "react";
-import { deleteTask, closeTask, reopenTask } from "@/app/actions/tasks";
 import { useRouter } from "next/navigation";
+import { closeTask, reopenTask, deleteTask } from "@/app/actions/tasks";
 
-export default function AdminTaskActions({ taskId, status }: { taskId: string, status: string }) {
-    const router = useRouter();
+export default function AdminTaskActions({ taskId, status }: { taskId: string; status: string }) {
     const [loading, setLoading] = useState(false);
+    const [msg, setMsg] = useState("");
+    const router = useRouter();
 
-    async function handleDelete() {
-        if (!confirm("Are you sure you want to delete this task? This cannot be undone.")) return;
+    async function handle(action: "close" | "reopen" | "delete") {
+        const confirmMsg =
+            action === "delete"
+                ? "DELETE this task permanently? This cannot be undone."
+                : action === "close"
+                ? "Close this task?"
+                : "Reopen this task?";
+
+        if (!confirm(confirmMsg)) return;
+
         setLoading(true);
-        const res = await deleteTask(taskId);
-        if (res.success) {
-            router.push("/admin"); // Redirect to admin dashboard
+        setMsg("");
+
+        let res;
+        if (action === "close") res = await closeTask(taskId);
+        else if (action === "reopen") res = await reopenTask(taskId);
+        else res = await deleteTask(taskId);
+
+        setLoading(false);
+
+        if (res.error) {
+            setMsg(res.error);
         } else {
-            alert("Failed to delete task");
-            setLoading(false);
+            if (action === "delete") router.push("/admin");
+            else router.refresh();
         }
     }
 
-    async function handleClose() {
-        if (!confirm("Close this task?")) return;
-        setLoading(true);
-        const res = await closeTask(taskId);
-        setLoading(false);
-        if (!res.success) alert("Failed to close task");
-    }
-
-    async function handleReopen() {
-        if (!confirm("Reopen this task?")) return;
-        setLoading(true);
-        const res = await reopenTask(taskId);
-        setLoading(false);
-        if (!res.success) alert("Failed to reopen task");
-    }
-
     return (
-        <div className="bg-zinc-900 border border-red-900/50 p-6 mt-6">
-            <h3 className="text-sm text-red-500 uppercase tracking-widest mb-4">Admin Controls</h3>
-            <div className="flex flex-col gap-2">
+        <div className="border border-white/20 p-6 mb-6">
+            <h3 className="text-sm font-mono font-bold uppercase tracking-widest mb-4 text-white">
+                Admin Controls
+            </h3>
+
+            {msg && (
+                <p className="mb-4 text-xs font-mono text-red-400 border border-red-900 bg-red-900/10 p-2">
+                    [ERROR] {msg}
+                </p>
+            )}
+
+            <div className="flex flex-wrap gap-3">
                 {status !== "CLOSED" && (
                     <button
-                        onClick={handleClose}
+                        onClick={() => handle("close")}
                         disabled={loading}
-                        className="w-full border border-yellow-600 text-yellow-500 py-2 hover:bg-yellow-900/20 text-xs font-bold uppercase transition-colors"
+                        className="px-4 py-2 border border-yellow-600 text-yellow-500 font-mono font-bold text-xs uppercase tracking-widest hover:bg-yellow-900/20 disabled:opacity-50 transition-colors"
                     >
-                        Close Task
+                        {loading ? "..." : "Close Task"}
                     </button>
                 )}
 
-                {(status === "CLOSED" || status === "COMPLETED") && (
+                {status === "CLOSED" && (
                     <button
-                        onClick={handleReopen}
+                        onClick={() => handle("reopen")}
                         disabled={loading}
-                        className="w-full border border-green-600 text-green-500 py-2 hover:bg-green-900/20 text-xs font-bold uppercase transition-colors"
+                        className="px-4 py-2 border border-blue-600 text-blue-400 font-mono font-bold text-xs uppercase tracking-widest hover:bg-blue-900/20 disabled:opacity-50 transition-colors"
                     >
-                        Reopen Task
+                        {loading ? "..." : "Reopen Task"}
                     </button>
                 )}
 
                 <button
-                    onClick={handleDelete}
+                    onClick={() => handle("delete")}
                     disabled={loading}
-                    className="w-full bg-red-900/20 text-red-500 border border-red-900 py-2 hover:bg-red-900/40 text-xs font-bold uppercase transition-colors"
+                    className="px-4 py-2 border border-red-600 text-red-500 font-mono font-bold text-xs uppercase tracking-widest hover:bg-red-900/20 disabled:opacity-50 transition-colors"
                 >
-                    Delete Task
+                    {loading ? "..." : "Delete Task"}
                 </button>
             </div>
         </div>
