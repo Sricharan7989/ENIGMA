@@ -3,20 +3,27 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
-export async function createTask(prevState: any, formData: FormData) {
+interface CreateTaskInput {
+    title: string;
+    description: string;
+    priority?: string;
+    dueDate?: string;
+    assignedToId?: string;
+    teamIdString?: string;
+}
+
+export async function createTask(data: CreateTaskInput) {
     const session = await auth();
     if (!session || session.user.role !== "ADMIN") return { error: "Unauthorized" };
-    const title = formData.get("title") as string;
-    const description = formData.get("description") as string;
-    const priority = (formData.get("priority") as string) || "MEDIUM";
-    const dueDate = formData.get("dueDate") as string;
-    const assignedToId = (formData.get("assignedToId") as string) || undefined;
-    const teamIdString = (formData.get("teamIdString") as string) || undefined;
+    if (!data) return { error: "No data received" };
+    const { title, description, priority = "MEDIUM", dueDate, assignedToId, teamIdString } = data;
     if (!title || title.length < 3) return { error: "Title must be at least 3 characters" };
     if (!description || description.length < 5) return { error: "Description too short" };
     try {
         const task = await prisma.task.create({ data: {
-            title, description, priority: priority as any, status: "ASSIGNED",
+            title, description,
+            priority: priority as any,
+            status: "ASSIGNED",
             dueDate: dueDate ? new Date(dueDate) : undefined,
             assignedById: session.user.id,
             assignedToId: assignedToId || undefined,
@@ -32,13 +39,25 @@ export async function getTasks() {
     if (!session) return [];
     if (session.user.role === "ADMIN") {
         return await prisma.task.findMany({
-            include: { assignedTo: { select: { id: true, name: true, email: true } }, assignedBy: { select: { name: true } }, team: { select: { id: true, name: true } }, _count: { select: { comments: true } } },
+            include: {
+                assignedTo: { select: { id: true, name: true, email: true } },
+                assignedBy: { select: { name: true } },
+                team: { select: { id: true, name: true } },
+                _count: { select: { comments: true } }
+            },
             orderBy: { created_at: "desc" }
         });
     }
     return await prisma.task.findMany({
-        where: { OR: [{ assignedToId: session.user.id }, { teamIdString: session.user.teamId ?? undefined }] },
-        include: { assignedBy: { select: { name: true } }, team: { select: { name: true } }, _count: { select: { comments: true } } },
+        where: { OR: [
+            { assignedToId: session.user.id },
+            { teamIdString: session.user.teamId ?? undefined }
+        ]},
+        include: {
+            assignedBy: { select: { name: true } },
+            team: { select: { name: true } },
+            _count: { select: { comments: true } }
+        },
         orderBy: { created_at: "desc" }
     });
 }
@@ -46,8 +65,11 @@ export async function getTasks() {
 export async function deleteTask(taskId: string) {
     const session = await auth();
     if (!session || session.user.role !== "ADMIN") return { error: "Unauthorized" };
-    try { await prisma.task.delete({ where: { id: taskId } }); revalidatePath("/admin"); return { success: true }; }
-    catch { return { error: "Failed to delete task" }; }
+    try {
+        await prisma.task.delete({ where: { id: taskId } });
+        revalidatePath("/admin"); revalidatePath("/dashboard");
+        return { success: true };
+    } catch { return { error: "Failed to delete task" }; }
 }
 
 export async function closeTask(taskId: string) {
