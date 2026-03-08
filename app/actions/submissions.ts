@@ -1,202 +1,78 @@
-"use server";
-
+﻿"use server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
 
-const submitWorkSchema = z.object({
-    content: z.string().min(1, "Work description is required"),
-    // Attachments are handled via a separate upload step usually, but here we might pass URLs
-    attachments: z.array(z.object({
-        url: z.string().url(),
-        filename: z.string(),
-    })).optional(),
-});
-
-
-interface SubmissionState {
-    error?: string;
-    success?: boolean;
-}
-
-export async function submitWork(taskId: string, prevState: SubmissionState | null, formData: FormData) {
+export async function submitWork(taskId: string, data: { content: string }) {
     const session = await auth();
     if (!session) return { error: "Unauthorized" };
-
-    const rawData = {
-        content: formData.get("content") as string,
-        attachments: (formData.getAll("attachmentUrls") as string[]).map((url, i) => ({
-            url,
-            filename: (formData.getAll("attachmentNames")[i] as string) || 'unknown'
-        }))
-    };
-
-    const parsed = submitWorkSchema.safeParse(rawData);
-
-    if (!parsed.success) {
-        return { error: parsed.error.issues[0].message };
-    }
-
-    const { content, attachments } = parsed.data;
-
+    if (!data.content?.trim()) return { error: "Work description is required" };
     try {
-        // Verify task assignment
-        const task = await prisma.task.findUnique({
-            where: { id: taskId },
-            include: { team: { include: { users: true } } }
-        });
-
+        const task = await prisma.task.findUnique({ where: { id: taskId }, include: { team: { include: { users: true } } } });
         if (!task) return { error: "Task not found" };
-
-        const isAssignedUser = task.assignedToId === session.user.id;
-        const isAssignedTeamMember = task.team?.users.some(u => u.id === session.user.id);
-
-        if (!isAssignedUser && !isAssignedTeamMember) {
-            return { error: "You are not assigned to this task" };
+        const isAssigned = task.assignedToId === session.user.id || task.team?.users.some(u => u.id === session.user.id);
+        if (!isAssigned) return { error: "You are not assigned to this task" };
+        await prisma.comment.create({ data: { content: `[SUBMISSION:${session.user.id}] ${data.content}`, taskId, authorId: session.user.id } });
+        if (["ASSIGNED","ACCEPTED"].includes(task.status)) {
+            await prisma.task.update({ where: { id: taskId }, data: { status: "IN_PROGRESS" } });
         }
-
-        // Post comment as work submission? Or handle status?
-        // We probably want to update status to IN_PROGRESS (if not) or COMPLETED?
-        // Requirement: "Member ticks Completed. Submission is saved and visible."
-        // Let's assume this is the submission action.
-
-        // 1. Save attachments
-        if (attachments && attachments.length > 0) {
-            await Promise.all(attachments.map(att =>
-                prisma.attachment.create({
-                    data: {
-                        taskId,
-                        url: att.url,
-                        filename: att.filename,
-                        uploadedBy: session.user.id
-                    }
-                })
-            ));
-        }
-
-        // 2. Add comment/log about submission
-        await prisma.comment.create({
-            data: {
-                content: `[SUBMISSION] ${content}`,
-                taskId,
-                authorId: session.user.id
-            }
-        });
-
-        // 3. Update status to IN_PROGRESS if DRAFT/ASSIGNED/ACCEPTED?
-        // Or if user intends to "Finish", maybe separate action.
-        // Let's just update activity log.
-
-        await prisma.activityLog.create({
-            data: {
-                action: "WORK_SUBMITTED",
-                taskId,
-                userId: session.user.id,
-            }
-        });
-
-        revalidatePath(`/tasks/${taskId}`);
+        revalidatePath(`/tasks/${taskId}`); revalidatePath("/dashboard");
         return { success: true };
-    } catch (e) {
-        console.error(e);
-        return { error: "Submission failed" };
-    }
+    } catch (e) { console.error(e); return { error: "Submission failed" }; }
 }
 
 export async function acceptTask(taskId: string) {
     const session = await auth();
     if (!session) return { error: "Unauthorized" };
-
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } });
+    if (!user?.isTeamLeader) return { error: "Only the team leader can accept missions" };
     try {
-        const task = await prisma.task.findUnique({
-            where: { id: taskId },
-            include: { team: { include: { users: true } } }
-        });
-
+        const task = await prisma.task.findUnique({ where: { id: taskId }, include: { team: { include: { users: true } } } });
         if (!task) return { error: "Not found" };
-
-        const isAssignedUser = task.assignedToId === session.user.id;
-        const isAssignedTeamMember = task.team?.users.some(u => u.id === session.user.id);
-
-        if (!isAssignedUser && !isAssignedTeamMember) return { error: "Unauthorized" };
-
-        if (task.status !== 'ASSIGNED') return { error: "Task cannot be accepted at this stage" };
-
-        try {
-            await prisma.task.update({
-                where: { id: taskId, status: 'ASSIGNED' }, // Atomic transition
-                data: { status: 'ACCEPTED' }
-            });
-        } catch (err: unknown) {
-            // P2025 is Record to update not found
-            if (typeof err === 'object' && err && 'code' in err && err.code === 'P2025') {
-                return { error: "Task was already accepted or modified" };
-            }
-            throw err;
-        }
-
-        await prisma.activityLog.create({
-            data: {
-                action: "TASK_ACCEPTED",
-                taskId,
-                userId: session.user.id
-            }
-        });
-
-        revalidatePath(`/tasks/${taskId}`);
-        revalidatePath('/dashboard');
+        const isAssigned = task.assignedToId === session.user.id || task.team?.users.some(u => u.id === session.user.id);
+        if (!isAssigned) return { error: "Unauthorized" };
+        if (task.status !== "ASSIGNED") return { error: "Task cannot be accepted at this stage" };
+        await prisma.task.update({ where: { id: taskId }, data: { status: "ACCEPTED" } });
+        revalidatePath(`/tasks/${taskId}`); revalidatePath("/dashboard");
         return { success: true };
-
-    } catch (e) {
-        return { error: "Failed to accept" };
-    }
+    } catch { return { error: "Failed to accept" }; }
 }
 
-export async function markTaskComplete(taskId: string) {
+export async function declineTask(taskId: string) {
     const session = await auth();
     if (!session) return { error: "Unauthorized" };
-
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } });
+    if (!user?.isTeamLeader) return { error: "Only the team leader can decline missions" };
     try {
-        const task = await prisma.task.findUnique({
-            where: { id: taskId },
-            include: { team: { include: { users: true } } }
-        });
-
-        if (!task) return { error: "Not found" };
-
-        const isAssignedUser = task.assignedToId === session.user.id;
-        const isAssignedTeamMember = task.team?.users.some(u => u.id === session.user.id);
-
-        if (!isAssignedUser && !isAssignedTeamMember) return { error: "Unauthorized" };
-
-        const validStatuses = ['ACCEPTED', 'IN_PROGRESS'];
-        if (!validStatuses.includes(task.status)) return { error: "Task must be accepted before completion" };
-
-        const result = await prisma.task.updateMany({
-            where: {
-                id: taskId,
-                status: { in: ['ACCEPTED', 'IN_PROGRESS'] }
-            },
-            data: { status: 'COMPLETED' }
-        });
-
-        if (result.count === 0) {
-            return { error: "Task status changed or already completed" };
-        }
-
-        await prisma.activityLog.create({
-            data: {
-                action: "TASK_COMPLETED",
-                taskId,
-                userId: session.user.id
-            }
-        });
-
+        await prisma.task.update({ where: { id: taskId }, data: { status: "ASSIGNED" } });
         revalidatePath(`/tasks/${taskId}`);
-        revalidatePath('/dashboard');
         return { success: true };
-    } catch (e) {
-        return { error: "Failed to complete" };
-    }
+    } catch { return { error: "Failed to decline" }; }
+}
+
+export async function markMemberComplete(taskId: string) {
+    const session = await auth();
+    if (!session) return { error: "Unauthorized" };
+    try {
+        const task = await prisma.task.findUnique({ where: { id: taskId }, include: { team: { include: { users: true } } } });
+        if (!task) return { error: "Not found" };
+        const isAssigned = task.assignedToId === session.user.id || task.team?.users.some(u => u.id === session.user.id);
+        if (!isAssigned) return { error: "Unauthorized" };
+        await prisma.comment.create({ data: { content: `[MEMBER_DONE:${session.user.id}]`, taskId, authorId: session.user.id } });
+        if (task.team && task.team.users.length > 0) {
+            const allComments = await prisma.comment.findMany({ where: { taskId } });
+            const memberIds = task.team.users.map(u => u.id);
+            const doneIds = new Set(allComments
+                .filter(c => c.content.startsWith("[MEMBER_DONE:"))
+                .map(c => { const m = c.content.match(/\[MEMBER_DONE:([^\]]+)\]/); return m ? m[1] : null; })
+                .filter(Boolean)
+            );
+            const allDone = memberIds.every(id => doneIds.has(id));
+            if (allDone) await prisma.task.update({ where: { id: taskId }, data: { status: "COMPLETED" } });
+        } else {
+            await prisma.task.update({ where: { id: taskId }, data: { status: "COMPLETED" } });
+        }
+        revalidatePath(`/tasks/${taskId}`); revalidatePath("/dashboard");
+        return { success: true };
+    } catch (e) { console.error(e); return { error: "Failed" }; }
 }

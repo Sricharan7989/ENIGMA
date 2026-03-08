@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+﻿import { auth } from "@/lib/auth";
 
 export default auth((req) => {
     const isLoggedIn = !!req.auth;
@@ -9,6 +9,8 @@ export default auth((req) => {
     const isAuthRoute = nextUrl.pathname.startsWith("/auth");
     const isAdminRoute = nextUrl.pathname.startsWith("/admin");
     const isDashboardRoute = nextUrl.pathname.startsWith("/dashboard");
+    // FIX: /teams was unprotected â€” unauthenticated users could access team management
+    const isTeamsRoute = nextUrl.pathname.startsWith("/teams");
 
     // Don't interfere with public API auth routes
     if (isApiAuthRoute) return undefined;
@@ -25,14 +27,14 @@ export default auth((req) => {
     }
 
     // Protect private routes
-    if (!isLoggedIn && (isAdminRoute || isDashboardRoute)) {
+    if (!isLoggedIn && (isAdminRoute || isDashboardRoute || isTeamsRoute)) {
         let callbackUrl = nextUrl.pathname;
         if (nextUrl.search) {
             callbackUrl += nextUrl.search;
         }
         const encodedCallbackUrl = encodeURIComponent(callbackUrl);
         return Response.redirect(
-            new URL(`/auth/signin?callbackUrl=${encodedCallbackUrl}`, nextUrl)
+            new URL(`/auth/login?callbackUrl=${encodedCallbackUrl}`, nextUrl)
         );
     }
 
@@ -47,3 +49,5 @@ export default auth((req) => {
 export const config = {
     matcher: ["/((?!.+\\.[\\w]+$|_next).*)", "/", "/(api|trpc)(.*)"],
 };
+
+

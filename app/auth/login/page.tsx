@@ -5,7 +5,7 @@ import { signIn, getSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-export default function SignIn() {
+export default function Login() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
@@ -49,7 +49,7 @@ export default function SignIn() {
                         ENIGMA ACCESS
                     </h2>
                     <p className="mt-2 text-center text-xs font-mono text-gray-500 uppercase tracking-widest">
-                        Enter credentials to proceed
+                        Enter credentials to access the system
                     </p>
                 </div>
                 <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -110,13 +110,16 @@ export default function SignIn() {
                         </button>
                     </div>
 
-                    <div className="text-center font-mono text-xs">
-                        <Link
-                            href="/auth/signup"
-                            className="text-gray-600 hover:text-black hover:underline transition-all"
-                        >
-                            [ NO CREDENTIALS? CREATE ACCOUNT ]
-                        </Link>
+                    <div className="text-center">
+                        <p className="text-xs font-mono text-gray-500 uppercase tracking-widest">
+                            New operative?{" "}
+                            <Link
+                                href="/auth/signup"
+                                className="text-black font-bold hover:underline"
+                            >
+                                REGISTER
+                            </Link>
+                        </p>
                     </div>
                 </form>
             </div>

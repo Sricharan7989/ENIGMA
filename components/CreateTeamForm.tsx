@@ -138,7 +138,7 @@ export default function CreateTeamForm({ onSuccess }: CreateTeamFormProps) {
             <input
               type="range"
               min="1"
-              max="5"
+              max="100"
               step="1"
               name="maxMembers"
               value={formData.maxMembers}
